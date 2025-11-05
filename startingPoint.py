@@ -1,7 +1,4 @@
 def reward_function(params):
-    """
-    Example of rewarding the agent to follow center line
-    """
 
     reward = 1e-3
 
@@ -22,7 +19,7 @@ def reward_function(params):
     elif distance_from_center <= marker_3:
         reward += 0.1  # getting close to off track
 
-    # Incentivize going fast on straight ways and slower on curves
+    # Incentivise going more quickly on straight ways and slower on curves
     steering_angle = params['steering_angle']
     speed = params['speed']
     if -5 <= steering_angle <= 5:
