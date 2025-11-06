@@ -40,7 +40,22 @@ def reward_function(params):
     # Calculate the reward using a "decreasing quadratic curve"
     DIRECTION_THRESHOLD = 10.0
     k = - 2/ (DIRECTION_THRESHOLD ** 2)
-    reward = k * (direction_diff - DIRECTION_THRESHOLD) * (direction_diff + DIRECTION_THRESHOLD)
+    dir_reward = k * (direction_diff - DIRECTION_THRESHOLD) * (direction_diff + DIRECTION_THRESHOLD)
+    
+    speed = params.get('speed', 0.0)
+    
+    # Target speed decays with turning angle (e.g., 3.5 m/s on straights down to 1.0 on tight corners)
+    MAX_SPEED = 3.5
+    MIN_SPEED = 1.0
+    # Map direction_diff in [0, 90] to a target in [MAX_SPEED, MIN_SPEED]
+    dd_clipped = min(direction_diff, 90.0)
+    target_speed = MAX_SPEED - (MAX_SPEED - MIN_SPEED) * (dd_clipped / 90.0)
+
+    
+    # Convert to a smooth factor in (0, 1], e.g., via a Gaussian around target_speed
+    sigma = 0.7  # tolerance (tune)
+    speed_factor = math.exp(-((speed - target_speed) ** 2) / (2 * sigma ** 2))
+    reward = max(dir_reward * (0.5 + 0.5 * speed_factor), 1e-3)
     
     return float(reward)
 
