@@ -1,16 +1,6 @@
 import math
 
 def reward_function(params):
-    """
-    Bounded reward with:
-      - heading alignment (smooth quadratic)
-      - progress rate shaping (progress per step vs target)
-      - lane discipline (distance from center)
-      - curvature-aware speed target (from waypoint turn angle)
-      - steering smoothness (mild penalty on large steering)
-    Returns: reward in [EPS, SCALE], default ~[1e-3, 3.0]
-    """
-
     # ---------- Read inputs (robustly) ----------
     waypoints = params['waypoints']                           # [(x,y), ...]
     closest_wp = params['closest_waypoints']                  # [i_prev, i_next]
@@ -31,16 +21,16 @@ def reward_function(params):
     # Progress target: expected steps per lap
     EXPECTED_STEPS_PER_LAP = 220.0
     TARGET_PROGRESS_PER_STEP = 100.0 / EXPECTED_STEPS_PER_LAP
-    PROG_CAP     = 1.2              # don’t over-reward progress spikes
+    PROG_CAP     = 1.2              # don’t over-reward progress
     # Lane discipline
     LANE_POWER   = 2.0              # 2 = quadratic decay from centerline
     # Curvature-speed
     LOOKAHEAD = True                #Whether to use the Lookahead to anticipate curves for the heading factor
-    CURV_LOOKAHEAD = 5              # use next 2 segments to estimate turn angle
+    CURV_LOOKAHEAD = 5              # How Many Segments to look ahead to determine if a curve is coming up - A higher number will slow down earlier for a curve.
     V_MIN        = 0.5              # m/s in tight turns
-    V_MAX        = 4.0              # m/s on straights (match your action space)
-    ALPHA_SPEED  = 0.12             # curvature → target speed sensitivity Larger number will slow down more (deg^-1)
-    SPEED_FLOOR  = 0.2              # min speed factor so we never zero out reward - Lower number will penalise more if going too quick
+    V_MAX        = 4.0              # m/s on straights (match action space)
+    ALPHA_SPEED  = 0.12             # curvature → target speed sensitivity Larger number will slow down more into corners (deg^-1)
+    SPEED_FLOOR  = 0.2              # min speed factor so we never zero out reward - Lower number will penalise more if going too quickly
     # Smoothness
     BETA_STEER   = 0.05             # exp(-BETA*|steer_deg|)
     SMOOTH_FLOOR = 0.7              # don’t over-penalize; keep factor above this
@@ -66,7 +56,6 @@ def reward_function(params):
         the path is over the next `lookahead` segments starting at i_next.
         Uses RMS of successive heading changes for stability.
         """
-        n = len(waypoints)
         L = max(1, int(lookahead))
 
         # Collect segment headings for the next L segments
@@ -104,7 +93,7 @@ def reward_function(params):
     
     diff = _smallest_diff(track_dir, heading)                       # in [0, 180]
 
-    # Exponential decay with reard from centre line
+    #The reard gets exponentially worse as the car heading differs from the track direction
     #f_head = math.exp(- (direction_diff / D_HEADING) ** 2)
     f_head = math.exp(- (diff / D_HEADING) ** 2)
     f_head = max(f_head, EPS)
@@ -126,10 +115,10 @@ def reward_function(params):
     f_lane = max(f_lane, EPS)
 
     # ---------- Curvature-aware speed factor ----------
-    # Estimate upcoming turn angle using two forward segments
-
-    turn_deg = curvature_ahead(waypoints, i_next, CURV_LOOKAHEAD)  # ← uses your hyperparam
     
+    #Calculate the turn angle over the next few waypoints (as determined by CURV_LOOKAHEAD)
+    turn_deg = curvature_ahead(waypoints, i_next, CURV_LOOKAHEAD)
+    # Estimate upcoming turn angle using two forward segments
     #h1 = _segment_heading(waypoints[_index(i_next)], waypoints[_index(i_next + 1)])
     #h2 = _segment_heading(waypoints[_index(i_next + 1)], waypoints[_index(i_next + 2)])
     #turn_deg = _smallest_diff(h2, h1)                               # ∈ [0, 180]
