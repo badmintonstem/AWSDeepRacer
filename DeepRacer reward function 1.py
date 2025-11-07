@@ -34,12 +34,10 @@ def reward_function(params):
 
     # Calculate the difference between the track direction and the heading direction of the car
     direction_diff = abs(((track_direction - heading + 180) % 360) - 180)
-    if direction_diff > 180:
-        direction_diff = 360 - direction_diff
 
     # Calculate the reward using a "decreasing quadratic curve"
     DIRECTION_THRESHOLD = 10.0
-    k = - 2/ (DIRECTION_THRESHOLD ** 2)
+    k = - 2.0/ (DIRECTION_THRESHOLD ** 2)
     reward = k * (direction_diff - DIRECTION_THRESHOLD) * (direction_diff + DIRECTION_THRESHOLD)
     
     return float(reward)
