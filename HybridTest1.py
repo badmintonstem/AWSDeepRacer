@@ -2,7 +2,7 @@ import math
 
 def reward_function(params):
     """
-    Interpretable, bounded reward with:
+    Bounded reward with:
       - heading alignment (smooth quadratic)
       - progress rate shaping (progress per step vs target)
       - lane discipline (distance from center)
