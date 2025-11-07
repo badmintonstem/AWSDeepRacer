@@ -27,19 +27,19 @@ def reward_function(params):
     EPS          = 1e-3
     SCALE        = 3.0              # global scale for final reward
     # Heading (informative up to ~10°)
-    D_HEADING    = 14.0             # degrees at which heading factor hits zero (pre-clamp)
+    D_HEADING    = 15.0             # degrees at which heading factor hits zero (pre-clamp)
     # Progress target: expected steps per lap
     EXPECTED_STEPS_PER_LAP = 220.0
     TARGET_PROGRESS_PER_STEP = 100.0 / EXPECTED_STEPS_PER_LAP
-    PROG_CAP     = 1.5              # don’t over-reward progress spikes
+    PROG_CAP     = 1.2              # don’t over-reward progress spikes
     # Lane discipline
     LANE_POWER   = 2.0              # 2 = quadratic decay from centerline
     # Curvature-speed
-    LOOKAHEAD = False                #Whether to use the Lookahead to anticipate curves for the heading factor
+    LOOKAHEAD = True                #Whether to use the Lookahead to anticipate curves for the heading factor
     CURV_LOOKAHEAD = 5              # use next 2 segments to estimate turn angle
     V_MIN        = 0.5              # m/s in tight turns
     V_MAX        = 4.0              # m/s on straights (match your action space)
-    ALPHA_SPEED  = 0.15             # curvature → target speed sensitivity Larger number will slow down more (deg^-1)
+    ALPHA_SPEED  = 0.12             # curvature → target speed sensitivity Larger number will slow down more (deg^-1)
     SPEED_FLOOR  = 0.2              # min speed factor so we never zero out reward - Lower number will penalise more if going too quick
     # Smoothness
     BETA_STEER   = 0.05             # exp(-BETA*|steer_deg|)
@@ -104,7 +104,7 @@ def reward_function(params):
     
     diff = _smallest_diff(track_dir, heading)                       # in [0, 180]
 
-    # Smooth quadratic: 1 at 0°, 0 at D_HEADING (then clamped to EPS)
+    # Exponential decay with reard from centre line
     #f_head = math.exp(- (direction_diff / D_HEADING) ** 2)
     f_head = math.exp(- (diff / D_HEADING) ** 2)
     f_head = max(f_head, EPS)
@@ -138,9 +138,13 @@ def reward_function(params):
     # v* = V_MIN + (V_MAX - V_MIN) * exp(-ALPHA * turn_deg)
     v_star = V_MIN + (V_MAX - V_MIN) * math.exp(-ALPHA_SPEED * turn_deg)
     v_star = max(v_star, 1e-3)
+    err = (speed - v_star) / v_star
 
     # Speed-match factor: 1 when on target, drops linearly with relative error
-    f_speed = 1.0 - abs(speed - v_star) / v_star
+    if turn_deg < 2.0:
+        f_speed = 1.0 - max(0.0, -err)
+    else:
+        f_speed = 1.0 - abs(err)
     # keep it gentle/bounded
     f_speed = max(SPEED_FLOOR, min(1.0, f_speed))
 
